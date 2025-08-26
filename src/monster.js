@@ -1,7 +1,8 @@
 import { computeSecondaryStats } from './stats.js';
+import { CONFIG } from './config.js';
 
 export function generateMonster(rng=Math.random) {
-  const randStat = () => 8 + Math.floor(rng()*8); // 8..15
+  const randStat = () => CONFIG.monsterStats.min + Math.floor(rng()*(CONFIG.monsterStats.max - CONFIG.monsterStats.min + 1));
   const base = {
     strength: randStat(),
     agility: randStat(),

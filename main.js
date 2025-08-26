@@ -1,6 +1,7 @@
 import { computeSecondaryStats } from './src/stats.js';
 import { attemptAttack } from './src/combat.js';
 import { generateMonster } from './src/monster.js';
+import { CONFIG } from './src/config.js';
 
 function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
@@ -152,41 +153,47 @@ async function fight(monster, monsterSprite){
 async function explore(){
   showScreen('dungeon');
   eventText.textContent=`${hero.name} отправился в подземелье`;
-  let events=0;
-  while(hero.hp>0 && events<100){
-    events++;
-    await sleep(500);
-    const roll=Math.random();
-    if(roll<0.5){
-      const monster=generateMonster();
-      monster.maxHp=monster.hp;
-      const monsterSprite=genSprite('#f55');
-      eventText.textContent=`Встречен ${monster.name}`;
-      await fight(monster, monsterSprite);
-      if(hero.hp<=0) break;
-      const reward=rand(5,20);
-      hero.coins+=reward; hero.kills++;
-      eventText.textContent=`Монстр повержен. +${reward} монет`;
-      updateRoomStats();
-    } else if(roll<0.7){
-      const reward=rand(10,30); hero.coins+=reward;
-      if(hero.items.length<8){ hero.items.push('Лут'); }
-      eventText.textContent=`Сундук. +${reward} монет`;
+    let events=0;
+    let escaped=false;
+    const c=CONFIG.eventChances;
+    while(hero.hp>0 && events<CONFIG.eventLimit){
+      events++;
+      await sleep(500);
+      const roll=Math.random();
+      if(roll<c.monster){
+        const monster=generateMonster();
+        monster.maxHp=monster.hp;
+        const monsterSprite=genSprite('#f55');
+        eventText.textContent=`Встречен ${monster.name}`;
+        await fight(monster, monsterSprite);
+        if(hero.hp<=0) break;
+        const reward=rand(CONFIG.rewards.monsterCoins[0], CONFIG.rewards.monsterCoins[1]);
+        hero.coins+=reward; hero.kills++;
+        eventText.textContent=`Монстр повержен. +${reward} монет`;
+        updateRoomStats();
+      } else if(roll<c.monster + c.chest){
+        const reward=rand(CONFIG.rewards.chestCoins[0], CONFIG.rewards.chestCoins[1]); hero.coins+=reward;
+        if(hero.items.length<8){ hero.items.push('Лут'); }
+        eventText.textContent=`Сундук. +${reward} монет`;
+        updateRoomStats();
+      } else if(roll<c.monster + c.chest + c.potion){
+        const heal=rand(CONFIG.rewards.potionHeal[0], CONFIG.rewards.potionHeal[1]); hero.hp=Math.min(hero.maxHp, hero.hp+heal);
+        eventText.textContent=`Зелье. +${heal} HP`;
+        updateRoomStats();
+      } else {
+        eventText.textContent=`Найден выход из лабиринта!`;
+        escaped=true;
+        break;
+      }
+    }
+    if(hero.hp>0){
+      if(!escaped) eventText.textContent+='\nЗабег окончен.';
+      showScreen('room');
       updateRoomStats();
     } else {
-      const heal=rand(10,30); hero.hp=Math.min(hero.maxHp, hero.hp+heal);
-      eventText.textContent=`Зелье. +${heal} HP`;
-      updateRoomStats();
+      showScreen('death');
     }
   }
-  if(hero.hp>0){
-    eventText.textContent+='\nЗабег окончен.';
-    showScreen('room');
-    updateRoomStats();
-  } else {
-    showScreen('death');
-  }
-}
 
 dungeonBtn.onclick=()=>{ explore(); };
 
