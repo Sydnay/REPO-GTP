@@ -7,7 +7,11 @@
 body { font-family:sans-serif; background:#111; color:#eee; text-align:center; }
 .screen { display:none; }
 canvas { image-rendering:pixelated; width:128px; height:128px; border:1px solid #555; background:#222; margin:10px auto; }
-#log, #eventLog { white-space:pre-line; margin-top:10px; }
+#dungeon { position:relative; }
+#battleCanvas { height:64px; }
+#eventText { white-space:pre-line; margin-top:10px; }
+.damage { position:absolute; pointer-events:none; color:#ff0; animation:float 1s ease-out forwards; }
+@keyframes float { from{opacity:1; transform:translateY(0);} to{opacity:0; transform:translateY(-20px);} }
 .popup { position:fixed; top:20%; left:50%; transform:translateX(-50%); background:#222; padding:10px; border:1px solid #555; display:none; }
 .inventory-slot { width:32px; height:32px; border:1px solid #555; display:inline-block; margin:2px; }
 </style>
@@ -38,8 +42,8 @@ canvas { image-rendering:pixelated; width:128px; height:128px; border:1px solid 
 </div>
 
 <div id="dungeon" class="screen">
-  <div id="log"></div>
-  <div id="eventLog"></div>
+  <canvas id="battleCanvas" width="128" height="64"></canvas>
+  <div id="eventText"></div>
 </div>
 
 <div id="death" class="screen">

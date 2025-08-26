@@ -24,8 +24,8 @@ const createBtn = document.getElementById('createBtn');
 const heroCanvas = document.getElementById('heroCanvas');
 const roomStats = document.getElementById('roomStats');
 const dungeonBtn = document.getElementById('dungeonBtn');
-const logEl = document.getElementById('log');
-const eventLogEl = document.getElementById('eventLog');
+const battleCanvas = document.getElementById('battleCanvas');
+const eventText = document.getElementById('eventText');
 const restartBtn = document.getElementById('restartBtn');
 const inventoryBtn = document.getElementById('inventoryBtn');
 const statsBtn = document.getElementById('statsBtn');
@@ -72,7 +72,8 @@ function setupCreation(){
                  intellect:parseInt(document.getElementById('intellect').textContent),
                  endurance:parseInt(document.getElementById('endurance').textContent) };
     const name=nameInput.value||'Герой';
-    hero={ name, ...base, ...computeSecondaryStats(base), coins:0, items:[], kills:0 };
+    const sec=computeSecondaryStats(base);
+    hero={ name, ...base, ...sec, maxHp: sec.hp, coins:0, items:[], kills:0 };
     drawSprite(heroCanvas, heroSprite);
     updateRoomStats();
     showScreen('room');
@@ -80,7 +81,7 @@ function setupCreation(){
 }
 
 function updateRoomStats(){
-  roomStats.textContent=`АТК: ${hero.attack} | HP: ${hero.hp} | Монеты: ${hero.coins}`;
+  roomStats.textContent=`АТК: ${hero.attack} | HP: ${hero.hp}/${hero.maxHp} | Монеты: ${hero.coins}`;
 }
 
 function updatePopups(){
@@ -92,7 +93,7 @@ function updatePopups(){
     inventorySlots.appendChild(slot);
   }
   statsText.textContent=`Убито монстров: ${hero.kills}\nМонеты: ${hero.coins}`;
-  charText.textContent=`Имя: ${hero.name}\nСИЛА ${hero.strength}\nЛОВКОСТЬ ${hero.agility}\nИНТЕЛЛЕКТ ${hero.intellect}\nВЫНОСЛИВОСТЬ ${hero.endurance}\nАТК ${hero.attack}\nHP ${hero.hp}\nMP ${hero.mp}\nУКЛОН ${hero.dodge}`;
+  charText.textContent=`Имя: ${hero.name}\nСИЛА ${hero.strength}\nЛОВКОСТЬ ${hero.agility}\nИНТЕЛЛЕКТ ${hero.intellect}\nВЫНОСЛИВОСТЬ ${hero.endurance}\nАТК ${hero.attack}\nHP ${hero.hp}/${hero.maxHp}\nMP ${hero.mp}\nУКЛОН ${hero.dodge}`;
 }
 
 function closePopups(){ [inventoryPopup,statsPopup,charPopup].forEach(p=>p.style.display='none'); }
@@ -104,10 +105,53 @@ charBtn.onclick=()=>{ updatePopups(); charPopup.style.display='block'; };
 
 restartBtn.onclick=()=>{ closePopups(); showScreen('creation'); setupCreation(); };
 
+function drawBattle(hp1,max1,hp2,max2,monsterSprite){
+  const ctx=battleCanvas.getContext('2d');
+  ctx.fillStyle='#000';
+  ctx.fillRect(0,0,battleCanvas.width,battleCanvas.height);
+  ctx.drawImage(heroSprite,16,32);
+  ctx.drawImage(monsterSprite,battleCanvas.width-32,32);
+  ctx.fillStyle='red';
+  ctx.fillRect(10,10,40,5);
+  ctx.fillRect(battleCanvas.width-50,10,40,5);
+  ctx.fillStyle='green';
+  ctx.fillRect(10,10,40*(hp1/max1),5);
+  ctx.fillRect(battleCanvas.width-50,10,40*(hp2/max2),5);
+}
+
+function showDamage(target,res){
+  const d=document.createElement('div');
+  d.className='damage';
+  d.textContent=res.hit?res.damage:'MISS';
+  const rect=battleCanvas.getBoundingClientRect();
+  const parent=screens.dungeon.getBoundingClientRect();
+  const x=rect.left-parent.left+(target==='monster'?90:30);
+  const y=rect.top-parent.top+5;
+  d.style.left=x+'px';
+  d.style.top=y+'px';
+  screens.dungeon.appendChild(d);
+  setTimeout(()=>d.remove(),1000);
+}
+
+async function fight(monster, monsterSprite){
+  drawBattle(hero.hp, hero.maxHp, monster.hp, monster.maxHp, monsterSprite);
+  while(hero.hp>0 && monster.hp>0){
+    let res=attemptAttack(hero, monster);
+    showDamage('monster', res);
+    drawBattle(hero.hp, hero.maxHp, monster.hp, monster.maxHp, monsterSprite);
+    await sleep(500);
+    if(monster.hp<=0) break;
+    res=attemptAttack(monster, hero);
+    showDamage('hero', res);
+    drawBattle(hero.hp, hero.maxHp, monster.hp, monster.maxHp, monsterSprite);
+    updateRoomStats();
+    await sleep(500);
+  }
+}
+
 async function explore(){
   showScreen('dungeon');
-  logEl.textContent=`${hero.name} отправился в подземелье`;
-  eventLogEl.style.display='none';
+  eventText.textContent=`${hero.name} отправился в подземелье`;
   let events=0;
   while(hero.hp>0 && events<100){
     events++;
@@ -115,38 +159,28 @@ async function explore(){
     const roll=Math.random();
     if(roll<0.5){
       const monster=generateMonster();
-      logEl.textContent+=`\nВстречен ${monster.name}`;
-      eventLogEl.style.display='block';
-      eventLogEl.textContent='Началась схватка\n';
-      while(hero.hp>0 && monster.hp>0){
-        let res=attemptAttack(hero, monster);
-        eventLogEl.textContent+=`${hero.name} бросок ${res.attackRoll}, монстр уклон ${res.dodgeRoll} -> ${res.hit?'попадание':'промах'}\n`;
-        if(res.hit){ eventLogEl.textContent+=`Монстр HP ${monster.hp}\n`; }
-        if(monster.hp<=0) break;
-        res=attemptAttack(monster, hero);
-        eventLogEl.textContent+=`Монстр бросок ${res.attackRoll}, ${hero.name} уклон ${res.dodgeRoll} -> ${res.hit?'попадание':'промах'}\n`;
-        if(res.hit){ eventLogEl.textContent+=`${hero.name} HP ${hero.hp}\n`; updateRoomStats(); }
-        await sleep(300);
-      }
+      monster.maxHp=monster.hp;
+      const monsterSprite=genSprite('#f55');
+      eventText.textContent=`Встречен ${monster.name}`;
+      await fight(monster, monsterSprite);
       if(hero.hp<=0) break;
       const reward=rand(5,20);
       hero.coins+=reward; hero.kills++;
-      logEl.textContent+=`\nМонстр повержен. +${reward} монет`;
-      eventLogEl.style.display='none';
+      eventText.textContent=`Монстр повержен. +${reward} монет`;
       updateRoomStats();
     } else if(roll<0.7){
-      logEl.textContent+='\nСундук';
       const reward=rand(10,30); hero.coins+=reward;
       if(hero.items.length<8){ hero.items.push('Лут'); }
+      eventText.textContent=`Сундук. +${reward} монет`;
       updateRoomStats();
     } else {
-      logEl.textContent+='\nЗелье';
-      const heal=rand(10,30); hero.hp=Math.min(100, hero.hp+heal);
+      const heal=rand(10,30); hero.hp=Math.min(hero.maxHp, hero.hp+heal);
+      eventText.textContent=`Зелье. +${heal} HP`;
       updateRoomStats();
     }
   }
   if(hero.hp>0){
-    logEl.textContent+='\nЗабег окончен.';
+    eventText.textContent+='\nЗабег окончен.';
     showScreen('room');
     updateRoomStats();
   } else {
