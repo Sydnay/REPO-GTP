@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>Simple Yandex Games Clicker</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+        #clickBtn { font-size: 24px; padding: 10px 20px; }
+        #count { font-size: 32px; margin-top: 20px; }
+    </style>
+    <script src="https://yandex.ru/games/sdk/v2"></script>
+</head>
+<body>
+    <button id="clickBtn">Click me!</button>
+    <div id="count">0</div>
+    <script>
+        async function init() {
+            const ysdk = await YaGames.init();
+            const storage = ysdk.getStorage();
+            let clicks = 0;
+            try {
+                const data = await storage.getItem('clicks');
+                if (data) clicks = Number(data);
+            } catch (e) {
+                console.log('Storage unavailable', e);
+            }
+            const countEl = document.getElementById('count');
+            countEl.textContent = clicks;
+            document.getElementById('clickBtn').addEventListener('click', async () => {
+                clicks++;
+                countEl.textContent = clicks;
+                try {
+                    await storage.setItem('clicks', clicks);
+                } catch (e) {
+                    console.error('Failed to save', e);
+                }
+            });
+        }
+        init();
+    </script>
+</body>
+</html>
