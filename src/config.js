@@ -14,5 +14,8 @@ export const CONFIG = {
   monsterStats: {
     min: 8,
     max: 15
-  }
+  },
+  initialStats: { strength: 8, agility: 8, intellect: 8, endurance: 8 },
+  initialCoins: 0,
+  statPoints: 4
 };

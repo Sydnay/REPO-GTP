@@ -9,5 +9,5 @@ export function generateMonster(rng=Math.random) {
     intellect: randStat(),
     endurance: randStat()
   };
-  return { name: 'Монстр', ...base, ...computeSecondaryStats(base, rng) };
+  return { name: 'Монстр', ...base, ...computeSecondaryStats(base) };
 }
