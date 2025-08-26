@@ -6,6 +6,7 @@
     <style>
         body { font-family: sans-serif; text-align: center; background:#111; color:#eee; }
         #log { white-space: pre-line; margin-top:20px; min-height: 200px; }
+        #eventLog { white-space: pre-line; margin-top:10px; background:#222; padding:10px; display:none; }
         button { font-size: 20px; padding: 10px 20px; }
         canvas { image-rendering: pixelated; width:128px; height:128px; border:1px solid #555; background:#222; margin-top:20px; }
     </style>
@@ -14,12 +15,14 @@
     <button id="startBtn">Отправить в подземелье</button>
     <div id="stats"></div>
     <div id="log"></div>
+    <div id="eventLog"></div>
     <canvas id="game" width="32" height="32"></canvas>
     <script>
     function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
     const startBtn = document.getElementById('startBtn');
     const logEl = document.getElementById('log');
     const statsEl = document.getElementById('stats');
+    const eventLogEl = document.getElementById('eventLog');
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
 
@@ -53,6 +56,15 @@
         statsEl.textContent = `HP: ${h.hp} | Монеты: ${h.coins} | Инвентарь: ${h.items.join(', ')||'пусто'}`;
     }
 
+    function startEvent(){
+        eventLogEl.style.display='block';
+        eventLogEl.textContent='';
+    }
+
+    function endEvent(){
+        eventLogEl.style.display='none';
+    }
+
     async function run(){
         startBtn.disabled = true;
         ctx.clearRect(0,0,32,32);
@@ -71,32 +83,51 @@
                 const monster={hp:rand(20,100), atk:rand(1,10)};
                 drawSprite(monsterSprite);
                 logEl.textContent += `\nМонстр (Сила ${monster.atk}, HP ${monster.hp})`;
+                startEvent();
+                eventLogEl.textContent += `Началась схватка!\n`;
                 while(hero.hp>0 && monster.hp>0){
                     monster.hp -= hero.atk;
+                    eventLogEl.textContent += `Герой ударил монстра на ${hero.atk} (HP монстра ${Math.max(0,monster.hp)})\n`;
                     if(monster.hp<=0) break;
                     hero.hp -= monster.atk;
                     hero.hp = Math.max(0, hero.hp);
+                    eventLogEl.textContent += `Монстр ударил героя на ${monster.atk} (HP героя ${hero.hp})\n`;
+                    updateStats(hero);
+                    await new Promise(r=>setTimeout(r,300));
                 }
                 if(hero.hp<=0){
                     updateStats(hero);
+                    eventLogEl.textContent += `Герой погиб`;
                     logEl.textContent += `\nГерой погиб`;
+                    endEvent();
                     break;
                 }
                 const reward = rand(5,20);
                 hero.coins += reward;
+                eventLogEl.textContent += `Монстр повержен. Получено ${reward} монет\n`;
                 logEl.textContent += `\nМонстр повержен. Получено ${reward} монет (HP ${hero.hp})`;
+                endEvent();
             } else if(roll<0.7){
                 drawSprite(chestSprite);
+                logEl.textContent += `\nСундук`;
+                startEvent();
+                eventLogEl.textContent += `Герой открывает сундук...\n`;
                 const reward = rand(10,30);
                 const item = loot[rand(0,loot.length-1)];
                 hero.coins += reward;
                 hero.items.push(item);
-                logEl.textContent += `\nСундук: ${reward} монет и ${item}`;
+                eventLogEl.textContent += `Внутри ${reward} монет и ${item}\n`;
+                logEl.textContent += `: ${reward} монет и ${item}`;
+                endEvent();
             } else {
                 drawSprite(potionSprite);
+                logEl.textContent += `\nЗелье`;
+                startEvent();
                 const heal = rand(10,30);
                 hero.hp = Math.min(100, hero.hp + heal);
-                logEl.textContent += `\nЗелье: +${heal} HP (теперь ${hero.hp})`;
+                eventLogEl.textContent += `Герой выпивает зелье и восстанавливает ${heal} HP\n`;
+                logEl.textContent += `: +${heal} HP (теперь ${hero.hp})`;
+                endEvent();
             }
             updateStats(hero);
         }
