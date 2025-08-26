@@ -12,10 +12,10 @@ export const CONFIG = {
     potionHeal: [10, 30]
   },
   monsterStats: {
-    min: 8,
-    max: 15
+    min: 1,
+    max: 9
   },
-  initialStats: { strength: 8, agility: 8, intellect: 8, endurance: 8 },
-  initialCoins: 0,
+  initialStats: { strength: 10, agility: 10, intellect: 10, endurance: 10 },
+  initialCoins: 100,
   statPoints: 4
 };
