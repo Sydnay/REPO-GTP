@@ -2,41 +2,77 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8" />
-    <title>Simple Yandex Games Clicker</title>
+    <title>Простейший рогалик</title>
     <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-        #clickBtn { font-size: 24px; padding: 10px 20px; }
-        #count { font-size: 32px; margin-top: 20px; }
+        body { font-family: sans-serif; text-align: center; background:#111; color:#eee; }
+        #log { white-space: pre-line; margin-top:20px; min-height: 200px; }
+        button { font-size: 20px; padding: 10px 20px; }
+        canvas { image-rendering: pixelated; width:128px; height:128px; border:1px solid #555; background:#222; margin-top:20px; }
     </style>
-    <script src="https://yandex.ru/games/sdk/v2"></script>
 </head>
 <body>
-    <button id="clickBtn">Click me!</button>
-    <div id="count">0</div>
+    <button id="startBtn">Отправить в подземелье</button>
+    <div id="log"></div>
+    <canvas id="game" width="32" height="32"></canvas>
     <script>
-        async function init() {
-            const ysdk = await YaGames.init();
-            const storage = ysdk.getStorage();
-            let clicks = 0;
-            try {
-                const data = await storage.getItem('clicks');
-                if (data) clicks = Number(data);
-            } catch (e) {
-                console.log('Storage unavailable', e);
-            }
-            const countEl = document.getElementById('count');
-            countEl.textContent = clicks;
-            document.getElementById('clickBtn').addEventListener('click', async () => {
-                clicks++;
-                countEl.textContent = clicks;
-                try {
-                    await storage.setItem('clicks', clicks);
-                } catch (e) {
-                    console.error('Failed to save', e);
+    function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+    const startBtn = document.getElementById('startBtn');
+    const logEl = document.getElementById('log');
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    function drawHero(){ ctx.fillStyle = '#ff0'; ctx.fillRect(12,12,8,8); }
+    function drawMonster(){ ctx.fillStyle = '#f00'; ctx.fillRect(12,12,8,8); }
+    function drawChest(){ ctx.fillStyle = '#fc3'; ctx.fillRect(10,10,12,8); }
+    function drawPotion(){ ctx.fillStyle = '#0f0'; ctx.fillRect(12,10,8,12); }
+
+    async function run(){
+        startBtn.disabled = true;
+        ctx.clearRect(0,0,32,32);
+        drawHero();
+        let hero = { hp:100, atk: rand(1,10), coins:0 };
+        logEl.textContent = `Герой отправился в подземелье\nСила ${hero.atk}, HP ${hero.hp}`;
+        let events=0;
+        while(hero.hp>0 && events<100){
+            events++;
+            await new Promise(r=>setTimeout(r,500));
+            ctx.clearRect(0,0,32,32);
+            const roll = Math.random();
+            if(roll<0.5){
+                const monster={hp:rand(20,100), atk:rand(1,10)};
+                drawMonster();
+                logEl.textContent += `\nМонстр (Сила ${monster.atk}, HP ${monster.hp})`;
+                while(hero.hp>0 && monster.hp>0){
+                    monster.hp -= hero.atk;
+                    if(monster.hp<=0) break;
+                    hero.hp -= monster.atk;
                 }
-            });
+                if(hero.hp<=0){
+                    logEl.textContent += `\nГерой погиб`;
+                    break;
+                }
+                const reward = rand(5,20);
+                hero.coins += reward;
+                logEl.textContent += `\nМонстр повержен. Получено ${reward} монет (HP ${hero.hp})`;
+            } else if(roll<0.7){
+                drawChest();
+                const reward = rand(10,30);
+                hero.coins += reward;
+                logEl.textContent += `\nНайден сундук: ${reward} монет`;
+            } else {
+                drawPotion();
+                const heal = rand(10,30);
+                hero.hp = Math.min(100, hero.hp + heal);
+                logEl.textContent += `\nЗелье: +${heal} HP (теперь ${hero.hp})`;
+            }
         }
-        init();
+        ctx.clearRect(0,0,32,32);
+        drawHero();
+        logEl.textContent += `\nЗабег окончен. Монет: ${hero.coins}`;
+        startBtn.disabled = false;
+    }
+
+    startBtn.addEventListener('click', run);
     </script>
 </body>
 </html>
