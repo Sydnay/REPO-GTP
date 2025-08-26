@@ -75,8 +75,10 @@
                     monster.hp -= hero.atk;
                     if(monster.hp<=0) break;
                     hero.hp -= monster.atk;
+                    hero.hp = Math.max(0, hero.hp);
                 }
                 if(hero.hp<=0){
+                    updateStats(hero);
                     logEl.textContent += `\nГерой погиб`;
                     break;
                 }
