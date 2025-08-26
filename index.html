@@ -12,26 +12,55 @@
 </head>
 <body>
     <button id="startBtn">Отправить в подземелье</button>
+    <div id="stats"></div>
     <div id="log"></div>
     <canvas id="game" width="32" height="32"></canvas>
     <script>
     function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
     const startBtn = document.getElementById('startBtn');
     const logEl = document.getElementById('log');
+    const statsEl = document.getElementById('stats');
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
 
-    function drawHero(){ ctx.fillStyle = '#ff0'; ctx.fillRect(12,12,8,8); }
-    function drawMonster(){ ctx.fillStyle = '#f00'; ctx.fillRect(12,12,8,8); }
-    function drawChest(){ ctx.fillStyle = '#fc3'; ctx.fillRect(10,10,12,8); }
-    function drawPotion(){ ctx.fillStyle = '#0f0'; ctx.fillRect(12,10,8,12); }
+    function genSprite(color){
+        const s=16;
+        const c=document.createElement('canvas');
+        c.width=c.height=s;
+        const x=c.getContext('2d');
+        x.fillStyle='#000';
+        x.fillRect(0,0,s,s);
+        x.fillStyle=color;
+        for(let i=0;i<s;i++){
+            for(let j=0;j<s/2;j++){
+                if(Math.random()>0.5){
+                    x.fillRect(j,i,1,1);
+                    x.fillRect(s-1-j,i,1,1);
+                }
+            }
+        }
+        return c;
+    }
+
+    const heroSprite = genSprite('#ff0');
+    const monsterSprite = genSprite('#f00');
+    const chestSprite = genSprite('#fc3');
+    const potionSprite = genSprite('#0f0');
+
+    function drawSprite(spr){ ctx.drawImage(spr,8,8); }
+
+    function updateStats(h){
+        statsEl.textContent = `HP: ${h.hp} | Монеты: ${h.coins} | Инвентарь: ${h.items.join(', ')||'пусто'}`;
+    }
 
     async function run(){
         startBtn.disabled = true;
         ctx.clearRect(0,0,32,32);
-        drawHero();
-        let hero = { hp:100, atk: rand(1,10), coins:0 };
+        drawSprite(heroSprite);
+        let hero = { hp:100, atk: rand(1,10), coins:0, items:[] };
         logEl.textContent = `Герой отправился в подземелье\nСила ${hero.atk}, HP ${hero.hp}`;
+        updateStats(hero);
+        const loot=['Амулет','Меч','Кольцо','Свиток','Щит'];
         let events=0;
         while(hero.hp>0 && events<100){
             events++;
@@ -40,7 +69,7 @@
             const roll = Math.random();
             if(roll<0.5){
                 const monster={hp:rand(20,100), atk:rand(1,10)};
-                drawMonster();
+                drawSprite(monsterSprite);
                 logEl.textContent += `\nМонстр (Сила ${monster.atk}, HP ${monster.hp})`;
                 while(hero.hp>0 && monster.hp>0){
                     monster.hp -= hero.atk;
@@ -55,19 +84,22 @@
                 hero.coins += reward;
                 logEl.textContent += `\nМонстр повержен. Получено ${reward} монет (HP ${hero.hp})`;
             } else if(roll<0.7){
-                drawChest();
+                drawSprite(chestSprite);
                 const reward = rand(10,30);
+                const item = loot[rand(0,loot.length-1)];
                 hero.coins += reward;
-                logEl.textContent += `\nНайден сундук: ${reward} монет`;
+                hero.items.push(item);
+                logEl.textContent += `\nСундук: ${reward} монет и ${item}`;
             } else {
-                drawPotion();
+                drawSprite(potionSprite);
                 const heal = rand(10,30);
                 hero.hp = Math.min(100, hero.hp + heal);
                 logEl.textContent += `\nЗелье: +${heal} HP (теперь ${hero.hp})`;
             }
+            updateStats(hero);
         }
         ctx.clearRect(0,0,32,32);
-        drawHero();
+        drawSprite(heroSprite);
         logEl.textContent += `\nЗабег окончен. Монет: ${hero.coins}`;
         startBtn.disabled = false;
     }
