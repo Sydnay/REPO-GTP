@@ -2,6 +2,7 @@ import { computeSecondaryStats } from './src/stats.js';
 import { attemptAttack } from './src/combat.js';
 import { generateMonster } from './src/monster.js';
 import { CONFIG } from './src/config.js';
+import { UI_CONFIG } from './src/ui-config.js';
 
 function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
@@ -40,6 +41,40 @@ const charPopup = document.getElementById('charPopup');
 const charText = document.getElementById('charText');
 const shopPopup = document.getElementById('shopPopup');
 const shopItemsEl = document.getElementById('shopItems');
+const modalPopup = document.getElementById('modalPopup');
+const modalText = document.getElementById('modalText');
+const modalActions = document.getElementById('modalActions');
+
+function applyUIConfig(){
+  Object.entries(UI_CONFIG.canvases).forEach(([id,cfg])=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    if(cfg.width) el.width=cfg.width;
+    if(cfg.height) el.height=cfg.height;
+    if(cfg.displayWidth) el.style.width=cfg.displayWidth+'px';
+    if(cfg.displayHeight) el.style.height=cfg.displayHeight+'px';
+  });
+  document.querySelectorAll('.popup').forEach(p=>{
+    p.style.top=UI_CONFIG.popup.top;
+    p.style.left=UI_CONFIG.popup.left;
+  });
+}
+
+function showModal(message, options){
+  return new Promise(resolve=>{
+    modalText.textContent=message;
+    modalActions.innerHTML='';
+    options.forEach(opt=>{
+      const btn=document.createElement('button');
+      btn.textContent=opt.text;
+      btn.onclick=()=>{ modalPopup.style.display='none'; resolve(opt.value); };
+      modalActions.appendChild(btn);
+    });
+    modalPopup.style.display='block';
+  });
+}
+
+applyUIConfig();
 
 function genSprite(color){
   const s=16; const c=document.createElement('canvas'); c.width=c.height=s; const x=c.getContext('2d');
@@ -47,7 +82,7 @@ function genSprite(color){
   for(let i=0;i<s;i++){ for(let j=0;j<s/2;j++){ if(Math.random()>0.5){ x.fillRect(j,i,1,1); x.fillRect(s-1-j,i,1,1); } } }
   return c;
 }
-function drawSprite(canvas, spr){ const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,32,32); ctx.drawImage(spr,8,8); }
+function drawSprite(canvas, spr){ const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(spr,8,8); }
 
 let heroSprite = genSprite('#ff0');
 let hero = null;
@@ -167,7 +202,11 @@ async function fight(monster, monsterSprite){
     drawBattle(hero.hp, hero.maxHp, monster.hp, monster.maxHp, monsterSprite);
     updateRoomStats();
     if(hero.hp<=0 && hero.teleport && !hero.usedTeleport){
-      if(confirm('Использовать камень телепорта и продолжить?')){
+      const use=await showModal('Использовать камень телепорта и продолжить?',[
+        {text:'Да', value:true},
+        {text:'Нет', value:false}
+      ]);
+      if(use){
         hero.hp = hero.maxHp;
         hero.usedTeleport = true;
         drawBattle(hero.hp, hero.maxHp, monster.hp, monster.maxHp, monsterSprite);
@@ -198,7 +237,8 @@ async function explore(){
         const reward=rand(CONFIG.rewards.monsterCoins[0], CONFIG.rewards.monsterCoins[1]);
         hero.coins+=reward; hero.kills++;
         updateRoomStats();
-        if(!confirm('Продолжить восхождение?')){ escaped=true; }
+        const cont=await showModal('Продолжить восхождение?',[{text:'Да',value:true},{text:'Нет',value:false}]);
+        if(!cont){ escaped=true; }
         else level++;
         break;
       }

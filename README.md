@@ -2,6 +2,9 @@
 
 This project is a simple web-based roguelike.
 
+## Running locally
+Double-click `run-local.bat` to install dependencies and start a local server on port 8080.
+
 ## Configuration
 `src/config.js` exposes tunable parameters:
 
