@@ -34,13 +34,14 @@ canvas { image-rendering:pixelated; width:128px; height:128px; border:1px solid 
   <canvas id="heroCanvas" width="32" height="32"></canvas>
   <div id="roomStats"></div>
   <button id="dungeonBtn">Отправиться в подземелье</button>
-  <div>
-    <button id="inventoryBtn">Инвентарь</button>
-    <button id="statsBtn">Статистика</button>
-    <button id="charBtn">Окно персонажа</button>
-    <button id="shopBtn">Магазин</button>
+    <div>
+      <button id="inventoryBtn">Инвентарь</button>
+      <button id="statsBtn">Статистика</button>
+      <button id="charBtn">Окно персонажа</button>
+      <button id="shopBtn">Магазин</button>
+      <button id="equipBtn">Экипировка</button>
+    </div>
   </div>
-</div>
 
 <div id="dungeon" class="screen">
   <canvas id="battleCanvas" width="128" height="64"></canvas>
@@ -70,6 +71,12 @@ canvas { image-rendering:pixelated; width:128px; height:128px; border:1px solid 
 <div id="shopPopup" class="popup">
   <h3>Магазин</h3>
   <div id="shopItems"></div>
+  <button class="close">X</button>
+</div>
+
+<div id="equipPopup" class="popup">
+  <h3>Экипировка</h3>
+  <div id="equipSlots"></div>
   <button class="close">X</button>
 </div>
 
