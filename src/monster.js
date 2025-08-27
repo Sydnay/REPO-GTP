@@ -6,9 +6,9 @@ export function generateMonster(level, rarity = 'common', rng = Math.random) {
   const baseStat = () => Math.floor((level + 1) * k);
   const base = {
     strength: baseStat(),
-    agility: baseStat(),
+    dexterity: baseStat(),
     intellect: baseStat(),
-    endurance: baseStat()
+    stamina: baseStat()
   };
   return { name: rarity === 'boss' ? 'Босс' : 'Монстр', rarity, level, ...base, ...computeSecondaryStats(base) };
 }

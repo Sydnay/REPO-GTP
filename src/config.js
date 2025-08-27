@@ -20,7 +20,7 @@ export const CONFIG = {
     unique: 2.5,
     boss: 4
   },
-  initialStats: { strength: 8, agility: 8, intellect: 8, endurance: 8 },
+  initialStats: { strength: 8, dexterity: 8, intellect: 8, stamina: 8 },
   initialCoins: 0,
   statPoints: 4
 };

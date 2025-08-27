@@ -6,12 +6,14 @@
 <style>
 body { font-family:sans-serif; background:#111; color:#eee; text-align:center; }
 .screen { display:none; }
-canvas { image-rendering:pixelated; border:1px solid #555; background:#222; margin:10px auto; }
+canvas { image-rendering:pixelated; width:128px; height:128px; border:1px solid #555; background:#222; margin:10px auto; }
 #dungeon { position:relative; }
-#eventText { white-space:pre-line; margin-top:10px; }
+#battleCanvas { height:64px; }
+#roomStats { min-height:24px; margin:10px 0; }
+#eventText { white-space:pre-line; margin-top:10px; min-height:60px; }
 .damage { position:absolute; pointer-events:none; color:#ff0; animation:float 1s ease-out forwards; }
 @keyframes float { from{opacity:1; transform:translateY(0);} to{opacity:0; transform:translateY(-20px);} }
-.popup { position:fixed; transform:translateX(-50%); background:#222; padding:10px; border:1px solid #555; display:none; font-family:monospace; image-rendering:pixelated; }
+.popup { position:fixed; top:20%; left:50%; transform:translateX(-50%); background:#222; padding:10px; border:1px solid #555; display:none; }
 .inventory-slot { width:32px; height:32px; border:1px solid #555; display:inline-block; margin:2px; }
 </style>
 </head>
@@ -22,7 +24,7 @@ canvas { image-rendering:pixelated; border:1px solid #555; background:#222; marg
 </div>
 
 <div id="creation" class="screen">
-  <canvas id="creationCanvas"></canvas>
+  <canvas id="creationCanvas" width="32" height="32"></canvas>
   <div id="alloc"></div>
   <p>Свободных очков: <span id="points">4</span></p>
   <input id="nameInput" placeholder="Имя" />
@@ -30,19 +32,20 @@ canvas { image-rendering:pixelated; border:1px solid #555; background:#222; marg
 </div>
 
 <div id="room" class="screen">
-  <canvas id="heroCanvas"></canvas>
+  <canvas id="heroCanvas" width="32" height="32"></canvas>
   <div id="roomStats"></div>
   <button id="dungeonBtn">Отправиться в подземелье</button>
-  <div>
-    <button id="inventoryBtn">Инвентарь</button>
-    <button id="statsBtn">Статистика</button>
-    <button id="charBtn">Окно персонажа</button>
-    <button id="shopBtn">Магазин</button>
+    <div>
+      <button id="inventoryBtn">Инвентарь</button>
+      <button id="statsBtn">Статистика</button>
+      <button id="charBtn">Окно персонажа</button>
+      <button id="shopBtn">Магазин</button>
+      <button id="equipBtn">Экипировка</button>
+    </div>
   </div>
-</div>
 
 <div id="dungeon" class="screen">
-  <canvas id="battleCanvas"></canvas>
+  <canvas id="battleCanvas" width="128" height="64"></canvas>
   <div id="eventText"></div>
 </div>
 
@@ -72,9 +75,10 @@ canvas { image-rendering:pixelated; border:1px solid #555; background:#222; marg
   <button class="close">X</button>
 </div>
 
-<div id="modalPopup" class="popup">
-  <div id="modalText"></div>
-  <div id="modalActions"></div>
+<div id="equipPopup" class="popup">
+  <h3>Экипировка</h3>
+  <div id="equipSlots"></div>
+  <button class="close">X</button>
 </div>
 
 <script type="module" src="main.js"></script>

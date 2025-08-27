@@ -33,8 +33,8 @@ export function generateItem(type){
   let name = '';
   if(def.mod === 'damage') { mods.damage = val; name = `${type==='shield'?'Щит':'Оружие'} +${val}`; }
   else if(def.mod === 'armor') { mods.armor = val; name = `${type==='helmet'?'Шлем':'Броня'} +${val}`; }
-  else if(def.mod === 'primary') { const stat=['strength','agility','intellect','endurance'][rand(0,3)]; mods[stat]=val; name = `${type==='ring'?'Кольцо':'Амулет'} ${stat}+${val}`; }
-  else if(def.mod === 'temp') { const stat=['strength','agility','intellect','endurance'][rand(0,3)]; mods[stat]=val; name = `Зелье ${stat}+${val}`; }
+  else if(def.mod === 'primary') { const stat=['strength','dexterity','intellect','stamina'][rand(0,3)]; mods[stat]=val; name = `${type==='ring'?'Кольцо':'Амулет'} ${stat}+${val}`; }
+  else if(def.mod === 'temp') { const stat=['strength','dexterity','intellect','stamina'][rand(0,3)]; mods[stat]=val; name = `Зелье ${stat}+${val}`; }
   else if(type==='ingredient') { name='Ингредиент'; }
   else if(type==='junk') { name='Хлам'; }
   const buy = rand(def.buy[0], def.buy[1]);
