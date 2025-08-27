@@ -2,7 +2,7 @@ import { computeSecondaryStats } from './src/stats.js';
 import { attemptAttack } from './src/combat.js';
 import { generateMonster } from './src/monster.js';
 import { CONFIG } from './src/config.js';
-import { randomItem } from './src/items.js';
+import { UI_CONFIG } from './src/ui-config.js';
 
 function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
@@ -41,9 +41,40 @@ const charPopup = document.getElementById('charPopup');
 const charText = document.getElementById('charText');
 const shopPopup = document.getElementById('shopPopup');
 const shopItemsEl = document.getElementById('shopItems');
-const equipBtn = document.getElementById('equipBtn');
-const equipPopup = document.getElementById('equipPopup');
-const equipSlotsEl = document.getElementById('equipSlots');
+const modalPopup = document.getElementById('modalPopup');
+const modalText = document.getElementById('modalText');
+const modalActions = document.getElementById('modalActions');
+
+function applyUIConfig(){
+  Object.entries(UI_CONFIG.canvases).forEach(([id,cfg])=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    if(cfg.width) el.width=cfg.width;
+    if(cfg.height) el.height=cfg.height;
+    if(cfg.displayWidth) el.style.width=cfg.displayWidth+'px';
+    if(cfg.displayHeight) el.style.height=cfg.displayHeight+'px';
+  });
+  document.querySelectorAll('.popup').forEach(p=>{
+    p.style.top=UI_CONFIG.popup.top;
+    p.style.left=UI_CONFIG.popup.left;
+  });
+}
+
+function showModal(message, options){
+  return new Promise(resolve=>{
+    modalText.textContent=message;
+    modalActions.innerHTML='';
+    options.forEach(opt=>{
+      const btn=document.createElement('button');
+      btn.textContent=opt.text;
+      btn.onclick=()=>{ modalPopup.style.display='none'; resolve(opt.value); };
+      modalActions.appendChild(btn);
+    });
+    modalPopup.style.display='block';
+  });
+}
+
+applyUIConfig();
 
 function genSprite(color){
   const s=16; const c=document.createElement('canvas'); c.width=c.height=s; const x=c.getContext('2d');
@@ -51,7 +82,7 @@ function genSprite(color){
   for(let i=0;i<s;i++){ for(let j=0;j<s/2;j++){ if(Math.random()>0.5){ x.fillRect(j,i,1,1); x.fillRect(s-1-j,i,1,1); } } }
   return c;
 }
-function drawSprite(canvas, spr){ const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,32,32); ctx.drawImage(spr,8,8); }
+function drawSprite(canvas, spr){ const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(spr,8,8); }
 
 let heroSprite = genSprite('#ff0');
 let hero = null;
@@ -81,7 +112,7 @@ function setupCreation(){
                  endurance:parseInt(document.getElementById('endurance').textContent) };
     const name=nameInput.value||'Герой';
     const sec=computeSecondaryStats(base);
-    hero={ name, baseStats:{...base}, ...base, ...sec, maxHp: sec.hp, coins:CONFIG.initialCoins, items:Array(25).fill(null), equipment:{ring:null,helmet:null,amulet:null,weapon:null,armor:null,shield:null}, kills:0, teleport:false, usedTeleport:false };
+    hero={ name, ...base, ...sec, maxHp: sec.hp, coins:CONFIG.initialCoins, items:[], kills:0, teleport:false, usedTeleport:false };
     drawSprite(heroCanvas, heroSprite);
     updateRoomStats();
     showScreen('room');
@@ -92,156 +123,39 @@ function updateRoomStats(){
   roomStats.textContent=`Урон: ${hero.damage.min}-${hero.damage.max} | HP: ${hero.hp}/${hero.maxHp} | Монеты: ${hero.coins}`;
 }
 
-function describeItem(item){
-  return `${item.name}\n${item.desc}\nПокупка: ${item.buy} Продажа: ${item.sell}`;
-}
-
-function addItem(item){
-  const stackable=['ingredient','junk','consumable'];
-  if(stackable.includes(item.class)){
-    for(let i=0;i<hero.items.length;i++){
-      const it=hero.items[i];
-      if(it && it.item.name===item.name){ it.qty++; return true; }
-    }
-  }
-  for(let i=0;i<hero.items.length;i++){
-    if(!hero.items[i]){ hero.items[i]={item, qty:1}; return true; }
-  }
-  return false;
-}
-
-function totalMods(){
-  const mods={};
-  Object.values(hero.equipment).forEach(eq=>{ if(eq) Object.keys(eq.mods).forEach(k=>{ mods[k]=(mods[k]||0)+eq.mods[k]; }); });
-  return mods;
-}
-
-function recalcStats(){
-  const mods=totalMods();
-  const base={
-    strength:hero.baseStats.strength + (mods.strength||0),
-    agility:hero.baseStats.agility + (mods.agility||0),
-    intellect:hero.baseStats.intellect + (mods.intellect||0),
-    endurance:hero.baseStats.endurance + (mods.endurance||0)
-  };
-  const sec=computeSecondaryStats(base, mods);
-  Object.assign(hero, base, sec);
-  hero.maxHp=sec.hp; hero.hp=Math.min(hero.hp, hero.maxHp);
-  updateRoomStats();
-}
-
-function inventoryClick(i){
-  const slot=hero.items[i];
-  if(!slot) return;
-  const item=slot.item;
-  let opts=['2=Выбросить','3=Описание'];
-  const equipables=['weapon','armor','helmet','ring','amulet','shield'];
-  if(item.class==='consumable' || equipables.includes(item.class)) opts.unshift('1=Применить');
-  const choice=prompt(opts.join('\n'));
-  if(choice==='1'){
-    if(item.class==='consumable'){
-      Object.keys(item.mods).forEach(k=>{ hero.baseStats[k]=(hero.baseStats[k]||0)+item.mods[k]; });
-      recalcStats();
-      slot.qty--; if(slot.qty<=0) hero.items[i]=null;
-    } else if(equipables.includes(item.class)){
-      equipItem(i,item.class);
-    }
-  } else if(choice==='2'){
-    slot.qty--; if(slot.qty<=0) hero.items[i]=null;
-  } else if(choice==='3'){
-    alert(describeItem(item));
-  }
-  updatePopups();
-}
-
-function equipItem(index, type){
-  const slot=hero.items[index];
-  if(!slot) return;
-  const item=slot.item;
-  if(hero.equipment[type]){
-    alert('Ячейка занята'); return;
-  }
-  hero.equipment[type]=item;
-  slot.qty--; if(slot.qty<=0) hero.items[index]=null;
-  recalcStats();
-}
-
-function equipSlotClick(type){
-  const eq=hero.equipment[type];
-  if(eq){
-    const choice=prompt('1=Снять\n2=Описание\n3=Выбросить');
-    if(choice==='1'){
-      if(addItem(eq)){ hero.equipment[type]=null; recalcStats(); }
-      else alert('Инвентарь переполнен');
-    } else if(choice==='2'){
-      alert(describeItem(eq));
-    } else if(choice==='3'){
-      hero.equipment[type]=null; recalcStats();
-    }
-    updatePopups();
-    return;
-  }
-  const options=[];
-  hero.items.forEach((sl,i)=>{ if(sl && sl.item.class===type) options.push(`${i+1}:${sl.item.name}`); });
-  if(!options.length){ alert('Нет предметов'); return; }
-  const pick=prompt('Выберите:\n'+options.join('\n'));
-  const idx=parseInt(pick)-1;
-  if(!isNaN(idx) && hero.items[idx] && hero.items[idx].item.class===type){ equipItem(idx,type); updatePopups(); }
-}
-
 function updatePopups(){
   inventorySlots.innerHTML='';
-  for(let i=0;i<hero.items.length;i++){
+  for(let i=0;i<8;i++){
     const slot=document.createElement('div');
     slot.className='inventory-slot';
-    const data=hero.items[i];
-    if(data){ slot.textContent=data.item.name+(data.qty>1?` x${data.qty}`:''); }
-    slot.onclick=(()=>inventoryClick(i));
+    slot.textContent=hero.items[i]||'';
     inventorySlots.appendChild(slot);
-    if((i+1)%5===0) inventorySlots.appendChild(document.createElement('br'));
   }
-  equipSlotsEl.innerHTML='';
-  const order=['ring','helmet','amulet','weapon','armor','shield'];
-  order.forEach(t=>{
-    const slot=document.createElement('div');
-    slot.className='inventory-slot';
-    if(hero.equipment[t]) slot.textContent=hero.equipment[t].name; else slot.textContent=t;
-    slot.onclick=(()=>equipSlotClick(t));
-    equipSlotsEl.appendChild(slot);
-    if(t==='amulet') equipSlotsEl.appendChild(document.createElement('br'));
-  });
   statsText.textContent=`Убито монстров: ${hero.kills}\nМонеты: ${hero.coins}`;
   charText.textContent=`Имя: ${hero.name}\nСИЛА ${hero.strength}\nЛОВКОСТЬ ${hero.agility}\nИНТЕЛЛЕКТ ${hero.intellect}\nВЫНОСЛИВОСТЬ ${hero.endurance}\nУрон ${hero.damage.min}-${hero.damage.max}\nHP ${hero.hp}/${hero.maxHp}\nУклонение ${hero.dodge}\nБроня ${hero.armor}\nКрит ${hero.crit}%`;
 }
 
-function closePopups(){ [inventoryPopup,statsPopup,charPopup,shopPopup,equipPopup].forEach(p=>p.style.display='none'); }
+function closePopups(){ [inventoryPopup,statsPopup,charPopup,shopPopup].forEach(p=>p.style.display='none'); }
 [...document.querySelectorAll('.popup .close')].forEach(btn=>btn.onclick=closePopups);
 
 inventoryBtn.onclick=()=>{ updatePopups(); inventoryPopup.style.display='block'; };
 statsBtn.onclick=()=>{ updatePopups(); statsPopup.style.display='block'; };
 charBtn.onclick=()=>{ updatePopups(); charPopup.style.display='block'; };
 shopBtn.onclick=()=>{ renderShop(); shopPopup.style.display='block'; };
-equipBtn.onclick=()=>{ updatePopups(); equipPopup.style.display='block'; };
 
 restartBtn.onclick=()=>{ closePopups(); showScreen('creation'); setupCreation(); };
 
-let shopGoods = [];
+const shopGoods = [
+  { name:'Зелье силы (+1 СИЛА)', cost:10, apply:()=>{ hero.strength=Math.min(20, hero.strength+1); Object.assign(hero, computeSecondaryStats(hero)); hero.maxHp=hero.hp; } },
+  { name:'Зелье ловкости (+1 ЛОВ)', cost:10, apply:()=>{ hero.agility=Math.min(20, hero.agility+1); Object.assign(hero, computeSecondaryStats(hero)); hero.maxHp=hero.hp; } },
+  { name:'Зелье здоровья (+10 HP)', cost:15, apply:()=>{ hero.maxHp=Math.min(100, hero.maxHp+10); hero.hp=Math.min(hero.maxHp, hero.hp+10); } }
+];
 function renderShop(){
-  if(shopGoods.length===0){ shopGoods=[randomItem(),randomItem(),randomItem()]; }
   shopItemsEl.innerHTML='';
-  shopGoods.forEach((item,idx)=>{
+  shopGoods.forEach(item=>{
     const btn=document.createElement('button');
-    btn.textContent=`${item.name} - ${item.buy}`;
-    btn.onclick=()=>{
-      if(hero.coins>=item.buy){
-        if(addItem(item)){
-          hero.coins-=item.buy;
-          shopGoods.splice(idx,1);
-          updateRoomStats();
-          renderShop();
-        } else alert('Инвентарь переполнен');
-      }
-    };
+    btn.textContent=`${item.name} - ${item.cost}`;
+    btn.onclick=()=>{ if(hero.coins>=item.cost){ hero.coins-=item.cost; item.apply(); updateRoomStats(); renderShop(); }};
     shopItemsEl.appendChild(btn);
     shopItemsEl.appendChild(document.createElement('br'));
   });
@@ -288,7 +202,11 @@ async function fight(monster, monsterSprite){
     drawBattle(hero.hp, hero.maxHp, monster.hp, monster.maxHp, monsterSprite);
     updateRoomStats();
     if(hero.hp<=0 && hero.teleport && !hero.usedTeleport){
-      if(confirm('Использовать камень телепорта и продолжить?')){
+      const use=await showModal('Использовать камень телепорта и продолжить?',[
+        {text:'Да', value:true},
+        {text:'Нет', value:false}
+      ]);
+      if(use){
         hero.hp = hero.maxHp;
         hero.usedTeleport = true;
         drawBattle(hero.hp, hero.maxHp, monster.hp, monster.maxHp, monsterSprite);
@@ -319,7 +237,8 @@ async function explore(){
         const reward=rand(CONFIG.rewards.monsterCoins[0], CONFIG.rewards.monsterCoins[1]);
         hero.coins+=reward; hero.kills++;
         updateRoomStats();
-        if(!confirm('Продолжить восхождение?')){ escaped=true; }
+        const cont=await showModal('Продолжить восхождение?',[{text:'Да',value:true},{text:'Нет',value:false}]);
+        if(!cont){ escaped=true; }
         else level++;
         break;
       }
@@ -335,7 +254,7 @@ async function explore(){
       } else if(roll<c.safe+c.potion+c.monsterCommon+c.monsterRare+c.monsterUnique){
         const m=generateMonster(level,'unique'); m.maxHp=m.hp; const spr=genSprite('#f55'); eventText.textContent='Уникальный монстр'; await fight(m,spr); if(hero.hp>0){ const reward=rand(CONFIG.rewards.monsterCoins[0], CONFIG.rewards.monsterCoins[1]); hero.coins+=reward; hero.kills++; eventText.textContent+=` Победа +${reward} монет`; updateRoomStats(); }
       } else if(roll<c.safe+c.potion+c.monsterCommon+c.monsterRare+c.monsterUnique+c.chest){
-        const reward=rand(CONFIG.rewards.chestCoins[0], CONFIG.rewards.chestCoins[1]); hero.coins+=reward; const item=randomItem(); addItem(item); eventText.textContent=`Сундук +${reward} монет и ${item.name}`; updateRoomStats();
+        const reward=rand(CONFIG.rewards.chestCoins[0], CONFIG.rewards.chestCoins[1]); hero.coins+=reward; if(hero.items.length<8){ hero.items.push('Лут'); } eventText.textContent=`Сундук +${reward} монет`; updateRoomStats();
       } else {
         hero.teleport=true; eventText.textContent='Найден камень телепорта';
       }
