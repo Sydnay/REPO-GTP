@@ -5,10 +5,11 @@ This project is a simple web-based roguelike.
 ## Configuration
 `src/config.js` exposes tunable parameters:
 
-- **eventChances** – probabilities for dungeon events (`monster`, `chest`, `potion`, `exit`).
-- **eventLimit** – maximum number of events per run.
-- **rewards** – coin and healing ranges for monsters, chests and potions.
-- **monsterStats** – minimum and maximum primary attributes for generated monsters.
+- **levelCount** – number of dungeon floors.
+- **eventsPerLevel** – how many events occur on each floor before the boss.
+- **eventChances** – probabilities for safe zones, potions, monster rarities, chests and teleport stones.
+- **rewards** – coin ranges for monsters and chests.
+- **monsterK** – stat multipliers per monster rarity.
 - **initialStats** – starting primary attributes for a new hero.
 - **initialCoins** – how many coins the hero begins with.
 - **statPoints** – free points available to allocate during creation.
@@ -16,14 +17,13 @@ This project is a simple web-based roguelike.
 Adjust these values to tweak game balance.
 
 ## Formulas
-- **Attack** = `min(10, Strength)`
-- **HP** = `min(100, Endurance × 5)`
-- **MP** = `min(100, Intellect × 5)`
+- **Урон** = `[ (модификатор_урона + Strength/2) - 1 , (модификатор_урона + Strength/2) + 1 ]`
+- **HP** = `((1 + Endurance/2) × 10) + модификатор_ХП`
+- **Уклонение** = `5 + (Agility/2) + модификатор_уклонения`
+- **Броня** = `floor(Endurance/4 + 1) + модификатор_брони`
+- **Критический удар** = `1 + (Strength/5) + модификатор_крита` %
 
 ## Patch Notes
-- Removed dodge and accuracy checks; all attacks now land.
-- Added a shop in the hero room to buy stat and HP boosts.
-- Potions are consumed immediately on discovery.
-- Added "exit" event (~3% chance) returning the hero to the room and capped runs to 20 events.
-- Moved all event and monster parameters into `src/config.js` for easier tuning.
-- Added tests for attack resolution and updated combat logic accordingly.
+- Reworked primary and secondary stats with new formulas for damage, HP, dodge, armor and crit.
+- Introduced multi-floor dungeon with bosses and configurable event probabilities.
+- Added teleport stone mechanic allowing one revival during a run.

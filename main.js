@@ -77,7 +77,7 @@ function setupCreation(){
                  endurance:parseInt(document.getElementById('endurance').textContent) };
     const name=nameInput.value||'Герой';
     const sec=computeSecondaryStats(base);
-    hero={ name, ...base, ...sec, maxHp: sec.hp, coins:CONFIG.initialCoins, items:[], kills:0 };
+    hero={ name, ...base, ...sec, maxHp: sec.hp, coins:CONFIG.initialCoins, items:[], kills:0, teleport:false, usedTeleport:false };
     drawSprite(heroCanvas, heroSprite);
     updateRoomStats();
     showScreen('room');
@@ -85,7 +85,7 @@ function setupCreation(){
 }
 
 function updateRoomStats(){
-  roomStats.textContent=`АТК: ${hero.attack} | HP: ${hero.hp}/${hero.maxHp} | Монеты: ${hero.coins}`;
+  roomStats.textContent=`Урон: ${hero.damage.min}-${hero.damage.max} | HP: ${hero.hp}/${hero.maxHp} | Монеты: ${hero.coins}`;
 }
 
 function updatePopups(){
@@ -97,7 +97,7 @@ function updatePopups(){
     inventorySlots.appendChild(slot);
   }
   statsText.textContent=`Убито монстров: ${hero.kills}\nМонеты: ${hero.coins}`;
-  charText.textContent=`Имя: ${hero.name}\nСИЛА ${hero.strength}\nЛОВКОСТЬ ${hero.agility}\nИНТЕЛЛЕКТ ${hero.intellect}\nВЫНОСЛИВОСТЬ ${hero.endurance}\nАТК ${hero.attack}\nHP ${hero.hp}/${hero.maxHp}\nMP ${hero.mp}`;
+  charText.textContent=`Имя: ${hero.name}\nСИЛА ${hero.strength}\nЛОВКОСТЬ ${hero.agility}\nИНТЕЛЛЕКТ ${hero.intellect}\nВЫНОСЛИВОСТЬ ${hero.endurance}\nУрон ${hero.damage.min}-${hero.damage.max}\nHP ${hero.hp}/${hero.maxHp}\nУклонение ${hero.dodge}\nБроня ${hero.armor}\nКрит ${hero.crit}%`;
 }
 
 function closePopups(){ [inventoryPopup,statsPopup,charPopup,shopPopup].forEach(p=>p.style.display='none'); }
@@ -111,9 +111,9 @@ shopBtn.onclick=()=>{ renderShop(); shopPopup.style.display='block'; };
 restartBtn.onclick=()=>{ closePopups(); showScreen('creation'); setupCreation(); };
 
 const shopGoods = [
-  { name:'Зелье силы (+1 АТК)', cost:10, apply:()=>{ hero.attack=Math.min(10, hero.attack+1); } },
-  { name:'Зелье здоровья (+10 HP)', cost:15, apply:()=>{ hero.maxHp=Math.min(100, hero.maxHp+10); hero.hp=Math.min(hero.maxHp, hero.hp+10); } },
-  { name:'Очко силы (+1 СИЛА)', cost:20, apply:()=>{ hero.strength++; hero.attack=Math.min(10, hero.attack+1); hero.maxHp=Math.min(100, hero.maxHp+5); hero.hp=Math.min(hero.maxHp, hero.hp+5); } }
+  { name:'Зелье силы (+1 СИЛА)', cost:10, apply:()=>{ hero.strength=Math.min(20, hero.strength+1); Object.assign(hero, computeSecondaryStats(hero)); hero.maxHp=hero.hp; } },
+  { name:'Зелье ловкости (+1 ЛОВ)', cost:10, apply:()=>{ hero.agility=Math.min(20, hero.agility+1); Object.assign(hero, computeSecondaryStats(hero)); hero.maxHp=hero.hp; } },
+  { name:'Зелье здоровья (+10 HP)', cost:15, apply:()=>{ hero.maxHp=Math.min(100, hero.maxHp+10); hero.hp=Math.min(hero.maxHp, hero.hp+10); } }
 ];
 function renderShop(){
   shopItemsEl.innerHTML='';
@@ -143,7 +143,7 @@ function drawBattle(hp1,max1,hp2,max2,monsterSprite){
 function showDamage(target,res){
   const d=document.createElement('div');
   d.className='damage';
-  d.textContent=res.damage;
+  d.textContent=res.hit ? res.damage : 'Мимо';
   const rect=battleCanvas.getBoundingClientRect();
   const parent=screens.dungeon.getBoundingClientRect();
   const x=rect.left-parent.left+(target==='monster'?90:30);
@@ -166,6 +166,15 @@ async function fight(monster, monsterSprite){
     showDamage('hero', res);
     drawBattle(hero.hp, hero.maxHp, monster.hp, monster.maxHp, monsterSprite);
     updateRoomStats();
+    if(hero.hp<=0 && hero.teleport && !hero.usedTeleport){
+      if(confirm('Использовать камень телепорта и продолжить?')){
+        hero.hp = hero.maxHp;
+        hero.usedTeleport = true;
+        drawBattle(hero.hp, hero.maxHp, monster.hp, monster.maxHp, monsterSprite);
+      } else {
+        break;
+      }
+    }
     await sleep(500);
   }
 }
@@ -173,41 +182,46 @@ async function fight(monster, monsterSprite){
 async function explore(){
   showScreen('dungeon');
   eventText.textContent=`${hero.name} отправился в подземелье`;
-  let events=0;
-  let escaped=false;
   const c=CONFIG.eventChances;
-  while(hero.hp>0 && events<CONFIG.eventLimit){
-    events++;
-    await sleep(500);
-    const roll=Math.random();
-    if(roll<c.monster){
-      const monster=generateMonster();
-      monster.maxHp=monster.hp;
-      const monsterSprite=genSprite('#f55');
-      eventText.textContent=`Встречен ${monster.name}`;
-      await fight(monster, monsterSprite);
-      if(hero.hp<=0) break;
-      const reward=rand(CONFIG.rewards.monsterCoins[0], CONFIG.rewards.monsterCoins[1]);
-      hero.coins+=reward; hero.kills++;
-      eventText.textContent=`Монстр повержен. +${reward} монет`;
-      updateRoomStats();
-    } else if(roll<c.monster + c.chest){
-      const reward=rand(CONFIG.rewards.chestCoins[0], CONFIG.rewards.chestCoins[1]); hero.coins+=reward;
-      if(hero.items.length<8){ hero.items.push('Лут'); }
-      eventText.textContent=`Сундук. +${reward} монет`;
-      updateRoomStats();
-    } else if(roll<c.monster + c.chest + c.potion){
-      const heal=rand(CONFIG.rewards.potionHeal[0], CONFIG.rewards.potionHeal[1]); hero.hp=Math.min(hero.maxHp, hero.hp+heal);
-      eventText.textContent=`Зелье. +${heal} HP`;
-      updateRoomStats();
-    } else {
-      eventText.textContent=`Найден выход из лабиринта!`;
-      escaped=true;
-      break;
+  let level=0;
+  let escaped=false;
+  while(hero.hp>0 && level<CONFIG.levelCount){
+    for(let e=1;e<=CONFIG.eventsPerLevel && hero.hp>0;e++){
+      await sleep(500);
+      if(e===CONFIG.eventsPerLevel){
+        const boss=generateMonster(level,'boss');
+        boss.maxHp=boss.hp;
+        const spr=genSprite('#f55');
+        eventText.textContent=`Босс уровня ${level+1}`;
+        await fight(boss,spr);
+        if(hero.hp<=0) break;
+        const reward=rand(CONFIG.rewards.monsterCoins[0], CONFIG.rewards.monsterCoins[1]);
+        hero.coins+=reward; hero.kills++;
+        updateRoomStats();
+        if(!confirm('Продолжить восхождение?')){ escaped=true; }
+        else level++;
+        break;
+      }
+      const roll=Math.random();
+      if(roll<c.safe){
+        hero.hp=hero.maxHp; eventText.textContent='Безопасная зона. HP восстановлено'; updateRoomStats();
+      } else if(roll<c.safe+c.potion){
+        const heal=Math.floor(hero.maxHp*0.25); hero.hp=Math.min(hero.maxHp, hero.hp+heal); eventText.textContent=`Зелье лечения +${heal} HP`; updateRoomStats();
+      } else if(roll<c.safe+c.potion+c.monsterCommon){
+        const m=generateMonster(level,'common'); m.maxHp=m.hp; const spr=genSprite('#f55'); eventText.textContent='Монстр'; await fight(m,spr); if(hero.hp>0){ const reward=rand(CONFIG.rewards.monsterCoins[0], CONFIG.rewards.monsterCoins[1]); hero.coins+=reward; hero.kills++; eventText.textContent+=` Победа +${reward} монет`; updateRoomStats(); }
+      } else if(roll<c.safe+c.potion+c.monsterCommon+c.monsterRare){
+        const m=generateMonster(level,'rare'); m.maxHp=m.hp; const spr=genSprite('#f55'); eventText.textContent='Редкий монстр'; await fight(m,spr); if(hero.hp>0){ const reward=rand(CONFIG.rewards.monsterCoins[0], CONFIG.rewards.monsterCoins[1]); hero.coins+=reward; hero.kills++; eventText.textContent+=` Победа +${reward} монет`; updateRoomStats(); }
+      } else if(roll<c.safe+c.potion+c.monsterCommon+c.monsterRare+c.monsterUnique){
+        const m=generateMonster(level,'unique'); m.maxHp=m.hp; const spr=genSprite('#f55'); eventText.textContent='Уникальный монстр'; await fight(m,spr); if(hero.hp>0){ const reward=rand(CONFIG.rewards.monsterCoins[0], CONFIG.rewards.monsterCoins[1]); hero.coins+=reward; hero.kills++; eventText.textContent+=` Победа +${reward} монет`; updateRoomStats(); }
+      } else if(roll<c.safe+c.potion+c.monsterCommon+c.monsterRare+c.monsterUnique+c.chest){
+        const reward=rand(CONFIG.rewards.chestCoins[0], CONFIG.rewards.chestCoins[1]); hero.coins+=reward; if(hero.items.length<8){ hero.items.push('Лут'); } eventText.textContent=`Сундук +${reward} монет`; updateRoomStats();
+      } else {
+        hero.teleport=true; eventText.textContent='Найден камень телепорта';
+      }
     }
+    if(escaped || hero.hp<=0) break;
   }
   if(hero.hp>0){
-    if(!escaped) eventText.textContent+='\nЗабег окончен.';
     showScreen('room');
     updateRoomStats();
   } else {

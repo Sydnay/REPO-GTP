@@ -1,21 +1,26 @@
 export const CONFIG = {
+  levelCount: 10,
+  eventsPerLevel: 15,
   eventChances: {
-    monster: 0.5,
-    chest: 0.2,
-    potion: 0.27,
-    exit: 0.03
+    safe: 0.05,
+    potion: 0.1,
+    monsterCommon: 0.5,
+    monsterRare: 0.1,
+    monsterUnique: 0.02,
+    chest: 0.22,
+    teleport: 0.01
   },
-  eventLimit: 20,
   rewards: {
     monsterCoins: [5, 20],
-    chestCoins: [10, 30],
-    potionHeal: [10, 30]
+    chestCoins: [10, 30]
   },
-  monsterStats: {
-    min: 1,
-    max: 9
+  monsterK: {
+    common: 1,
+    rare: 1.5,
+    unique: 2.5,
+    boss: 4
   },
-  initialStats: { strength: 10, agility: 10, intellect: 10, endurance: 10 },
-  initialCoins: 100,
+  initialStats: { strength: 8, agility: 8, intellect: 8, endurance: 8 },
+  initialCoins: 0,
   statPoints: 4
 };
